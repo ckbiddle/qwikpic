@@ -24,10 +24,11 @@ export function StorageStack({ stack, app }) {
 
   const tblPictureCategoryAssociations = new Table(stack, "PictureCategoryAssociations", {
     fields: {
-      userId: "string",
+      categoryId: "string",
+      pictureId: "string",
       associationId: "string",
     },
-    primaryIndex: { partitionKey: "userId", sortKey: "associationId" },
+    primaryIndex: { partitionKey: "categoryId", sortKey: "associationId" },
   });
 
   return {

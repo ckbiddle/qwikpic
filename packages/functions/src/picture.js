@@ -1,51 +1,68 @@
-import AWS from "aws-sdk";
 import * as uuid from "uuid";
 import { Table } from "sst/node/table";
+import handler from "@qwikpic/core/handler";
+import dynamoDb from "@qwikpic/core/dynamodb";
 
-const dynamoDb = new AWS.DynamoDB.DocumentClient();
+export const create = handler(async (event) => {
 
-export async function create(event) {
-  let data, params;
+  let data = {
+    description: "",
+    imageFile: "",
+  };
 
-  // Request body is passed in as a JSON encoded string in 'event.body'
   if (event.body) {
-
     data = JSON.parse(event.body);
-    params = {
-      TableName: Table.Pictures.tableName,
-      Item: {
-        // The attributes of the item to be created
-        userId: "123", // The id of the author
-        pictureId: uuid.v1(), // A unique uuid
-        description: data.description, // Parsed from request body
-        imageFile: data.imageFile, // Parsed from request body
-        createdAt: Date.now(), // Current Unix timestamp
-      },
-    };
-  } else {
-    return {
-      statusCode: 404,
-      body: JSON.stringify({ error: true }),
-    };
   }
 
-  try {
-    await dynamoDb.put(params).promise();
+  const params = {
+    TableName: Table.Pictures.tableName,
+    Item: {
+      // The attributes of the item to be created
+      userId: event.requestContext.authorizer.iam.cognitoIdentity.identityId,
+      pictureId: uuid.v1(), // A unique uuid
+      description: data.description, // Parsed from request body
+      imageFile: data.imageFile, // Parsed from request body
+      createdAt: Date.now(), // Current Unix timestamp
+    },
+  };
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify(params.Item),
-    };
-  } catch (error) {
-    let message;
-    if (error instanceof Error) {
-      message = error.message;
-    } else {
-      message = String(error);
-    }
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: message }),
-    };
+  await dynamoDb.put(params);
+
+  return JSON.stringify(params.Item);
+});
+
+export const get = handler(async (event) => {
+
+  const params = {
+    TableName: Table.Pictures.tableName,
+    // 'Key' defines the partition key and sort key of the item to be retrieved
+    Key: {
+      userId: event.requestContext.authorizer.iam.cognitoIdentity.identityId,
+      pictureId: event.pathParameters.id, // The id of the picture from the path
+    },
+  };
+
+  const result = await dynamoDb.get(params);
+  if (!result.Item) {
+    throw new Error("Item not found.");
   }
-}
+
+  // Return the retrieved item
+  return result.Item;
+});
+
+export const list = handler(async (event) => {
+
+  const params = {
+    TableName: Table.PictureCategoryAssociations.tableName,
+    KeyConditionExpression: "categoryId = :categoryId",
+    ExpressionAttributeValues: {
+      ":categoryId": event.pathParameters.categoryId,
+    },
+  };
+
+  const result = await dynamoDb.query(params);
+
+  // Return the matching list of items in response body
+  return result.Items;
+});

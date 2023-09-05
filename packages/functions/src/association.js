@@ -1,51 +1,67 @@
-import AWS from "aws-sdk";
 import * as uuid from "uuid";
-
 import { Table } from "sst/node/table";
+import handler from "@qwikpic/core/handler";
+import dynamoDb from "@qwikpic/core/dynamodb";
 
-const dynamoDb = new AWS.DynamoDB.DocumentClient();
+export const create = handler(async (event) => {
+  let data = {
+    categoryId: "",
+    pictureId: "",
+  };
 
-export async function create(event) {
-  let data, params;
-
-  // Request body is passed in as a JSON encoded string in 'event.body'
   if (event.body) {
     data = JSON.parse(event.body);
-    params = {
-      TableName: Table.PictureCategoryAssociations.tableName,
-      Item: {
-        // The attributes of the item to be created
-        userId: "123", // The id of the author
-        associationId: uuid.v1(), // A unique uuid
-        categoryId: data.categoryId, // Parse from request body
-        pictureId: data.pictureId, // Parsed from request body
-        createdAt: Date.now(), // Current Unix timestamp
-      },
-    };
-  } else {
-    return {
-      statusCode: 404,
-      body: JSON.stringify({ error: true }),
-    };
   }
 
-  try {
-    await dynamoDb.put(params).promise();
+  // Get the image file name from the pictures table (i.e. pictures.imageFile)
+  // and add it as a field in the associations table. This will denormalize
+  // the structure, but will prevent a need to "join" to the pictures
+  // table to get all the image file names when querying by category. I don't
+  // like denormalizing, but I guess it's a common practice with NoSQL databases.
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify(params.Item),
-    };
-  } catch (error) {
-    let message;
-    if (error instanceof Error) {
-      message = error.message;
-    } else {
-      message = String(error);
+  var imageFile = "";
+
+  const params1 = {
+    TableName: Table.Pictures.tableName,
+    Key: {
+      userId: event.requestContext.authorizer.iam.cognitoIdentity.identityId,
+      pictureId: data.pictureId, // The id of the picture from the path
+    },
+  };
+
+  const result = await dynamoDb.get(params1);
+
+  if (result.Item)
+  {
+    if (result.Item.imageFile)
+    {
+      imageFile = result.Item.imageFile;
     }
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: message }),
-    };
+    else
+    {
+      console.log( "imageFile not found" );
+    }
   }
-}
+  else
+  {
+    // throw new Error("Item not found.");
+    console.log( "Item not found." );
+  }
+
+  const params2 = {
+    TableName: Table.PictureCategoryAssociations.tableName,
+    Item: {
+      // The attributes of the item to be created
+      userId: event.requestContext.authorizer.iam.cognitoIdentity.identityId,
+      associationId: uuid.v1(), // A unique uuid
+      categoryId: data.categoryId, // Parse from request body
+      pictureId: data.pictureId, // Parsed from request body
+      imageFile: imageFile,
+      createdAt: Date.now(), // Current Unix timestamp
+    },
+  };
+
+  await dynamoDb.put(params2);
+
+  return JSON.stringify(params2.Item);
+});
