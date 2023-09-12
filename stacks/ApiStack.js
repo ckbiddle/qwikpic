@@ -30,6 +30,7 @@ export function ApiStack({ stack, app }){
     },
     routes: {
       "POST /category": "packages/functions/src/category.create",
+      "GET /categories": "packages/functions/src/category.list",
     },
   });
 

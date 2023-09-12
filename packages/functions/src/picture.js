@@ -53,6 +53,9 @@ export const get = handler(async (event) => {
 
 export const list = handler(async (event) => {
 
+  console.log( "picture.list: event = " );
+  console.log( event );
+
   const params = {
     TableName: Table.PictureCategoryAssociations.tableName,
     KeyConditionExpression: "categoryId = :categoryId",

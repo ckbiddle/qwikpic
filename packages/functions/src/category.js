@@ -30,3 +30,28 @@ export const create = handler(async (event) => {
 
   return JSON.stringify(params.Item);
 });
+
+export const list = handler(async (event) => {
+
+  // console.log( "category.list: event = " );
+  // console.log( event );
+
+  // console.log( "identityId = " + 
+  //   JSON.stringify(
+  //     event.requestContext.authorizer.iam.cognitoIdentity.identityId
+  //   )
+  // ); 
+
+  const params = {
+    TableName: Table.Categories.tableName,
+    KeyConditionExpression: "userId = :userId",
+    ExpressionAttributeValues: {
+      ":userId": event.requestContext.authorizer.iam.cognitoIdentity.identityId,
+    },
+  };
+
+  const result = await dynamoDb.query(params);
+
+  // Return the matching list of items in response body
+  return result.Items;
+});
