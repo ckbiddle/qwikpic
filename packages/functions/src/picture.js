@@ -5,6 +5,8 @@ import dynamoDb from "@qwikpic/core/dynamodb";
 
 export const create = handler(async (event) => {
 
+  console.log( "event = \n" + JSON.stringify( event ));
+
   let data = {
     description: "",
     imageFile: "",
@@ -53,7 +55,7 @@ export const get = handler(async (event) => {
 
 export const list = handler(async (event) => {
 
-  console.log( "picture.list: event = " );
+  console.log( "picture.list: event =\n" );
   console.log( event );
 
   const params = {
@@ -65,6 +67,9 @@ export const list = handler(async (event) => {
   };
 
   const result = await dynamoDb.query(params);
+
+  console.log( "picture.list: result =\n" );
+  console.log( result );
 
   // Return the matching list of items in response body
   return result.Items;

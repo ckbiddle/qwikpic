@@ -52,6 +52,9 @@ export const list = handler(async (event) => {
 
   const result = await dynamoDb.query(params);
 
+  console.log( "category.js: result =" );
+  console.log( result );
+
   // Return the matching list of items in response body
   return result.Items;
 });
